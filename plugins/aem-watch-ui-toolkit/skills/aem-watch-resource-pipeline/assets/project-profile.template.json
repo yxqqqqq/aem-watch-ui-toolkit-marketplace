@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "application": "aem_watch",
+    "board": "board_target",
+    "resolution": "WIDTHxHEIGHT",
+    "rootMarkers": [
+      "application/{application}"
+    ]
+  },
+  "execution": {
+    "mode": "auto",
+    "resourceGenerationPolicy": "project",
+    "regenerateResourcesOnlyWhenChanged": true
+  },
+  "generation": {
+    "generatedFiles": [],
+    "allowedChangePatterns": [],
+    "manualDeclarations": [],
+    "preserveGeneratedSuffixes": []
+  }
+}

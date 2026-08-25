@@ -1,0 +1,20 @@
+{
+  "name": "aem-watch-team",
+  "interface": {
+    "displayName": "AEM Watch Team"
+  },
+  "plugins": [
+    {
+      "name": "aem-watch-ui-toolkit",
+      "source": {
+        "source": "local",
+        "path": "./plugins/aem-watch-ui-toolkit"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

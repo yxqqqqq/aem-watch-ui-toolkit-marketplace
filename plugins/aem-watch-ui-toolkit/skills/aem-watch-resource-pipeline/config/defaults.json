@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "application": "",
+    "board": "",
+    "resolution": "",
+    "rootMarkers": [
+      "application/{application}"
+    ]
+  },
+  "execution": {
+    "mode": "auto",
+    "resourceGenerationPolicy": "project",
+    "regenerateResourcesOnlyWhenChanged": true
+  },
+  "paths": {
+    "resourceRoot": "application/{application}/resource/{resolution}",
+    "imageRoot": "application/{application}/resource/{resolution}",
+    "uiProject": "application/{application}/resource/{resolution}/bt_watch.ui",
+    "translationTable": "application/{application}/resource/multiLang_translate_table.xls",
+    "includeHeader": "application/{application}/resource/{resolution}/res_include.h",
+    "stringMap": "application/{application}/resource/{resolution}/res_string_id.c",
+    "boardResourceRoot": "application/{application}/boards/{board}/res",
+    "uiEditor": "tools/ui_editor_1.58.01.11_NLVGL/UI-Editor.exe"
+  },
+  "figma": {
+    "provider": "figma_context",
+    "readTool": "get_figma_data",
+    "downloadTool": "download_figma_images"
+  },
+  "tools": {
+    "wpsRoots": [],
+    "wpsProgId": "KET.Application",
+    "pythonExecutable": "",
+    "uiEditorGenerationMode": "生成资源 -> 质量最高"
+  },
+  "translation": {
+    "keyColumn": 1,
+    "languageCodeRow": 2,
+    "dataStartRow": 3,
+    "forcedBreakToken": "[CR]",
+    "languageColumns": {
+      "zhC": 2,
+      "enG": 3,
+      "tr": 4,
+      "de": 5,
+      "es": 6,
+      "fr": 7,
+      "sv": 8,
+      "fa": 9,
+      "pl": 10,
+      "he": 11,
+      "ar": 12,
+      "id": 13,
+      "ru": 14,
+      "pt": 15
+    },
+    "protectedWrapperTokens": [
+      "E-SafeNet",
+      "LOCK"
+    ]
+  },
+  "generation": {
+    "languageResourceStem": "bt_watch",
+    "stateRoot": "Codex/aem-watch-resource-pipeline/state",
+    "generatedFiles": [],
+    "snapshotRoots": [
+      "application/{application}/resource/{resolution}",
+      "application/{application}/boards/{board}/res"
+    ],
+    "snapshotFiles": [
+      "application/{application}/resource/{resolution}/bt_watch_pic.h",
+      "tools/ui_editor_1.58.01.11_NLVGL/tmp.csv"
+    ],
+    "ephemeralFiles": [
+      "application/{application}/resource/{resolution}/bt_watch_pic.h",
+      "tools/ui_editor_1.58.01.11_NLVGL/tmp.csv"
+    ],
+    "editorTemporaryFiles": {
+      "restoreUnreferencedJpegSiblings": true
+    },
+    "preserveInputFiles": [
+      "application/{application}/resource/{resolution}/bt_watch.ui"
+    ],
+    "preserveGeneratedSuffixes": [],
+    "normalizeChangedTextFiles": [
+      "application/{application}/resource/{resolution}/res_include.h"
+    ],
+    "allowedChangePatterns": [],
+    "editorCommands": {
+      "open": 57601,
+      "save": 57603,
+      "generateQualityHigh": 32849
+    },
+    "timeoutSeconds": 300,
+    "stableSeconds": 5,
+    "idleFailureSeconds": 45,
+    "manualDeclarations": [],
+    "manualDeclarationInsertPattern": "(?m)^#endif //__RES_INCLUDE_H__\\s*$"
+  }
+}

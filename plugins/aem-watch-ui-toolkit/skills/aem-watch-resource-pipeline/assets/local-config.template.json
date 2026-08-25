@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "tools": {
+    "pythonExecutable": "",
+    "wpsRoots": [
+      "C:/Path/To/WPS Office"
+    ]
+  }
+}

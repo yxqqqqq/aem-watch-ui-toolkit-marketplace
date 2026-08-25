@@ -1,0 +1,27 @@
+{
+  "name": "aem-watch-ui-toolkit",
+  "version": "0.2.1",
+  "description": "Reusable AEM Watch UI conventions and project-configured resource automation.",
+  "author": {
+    "name": "AEM Watch UI Team"
+  },
+  "keywords": [
+    "aem-watch",
+    "lvgl",
+    "ui",
+    "resources",
+    "translation"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AEM Watch UI Toolkit",
+    "shortDescription": "AEM Watch UI conventions and guarded resource workflows.",
+    "longDescription": "Provides reusable AEM Watch UI conventions plus project-JSON-driven WPS translation and UI Editor resource workflows. Product board, resolution and paths remain in each repository.",
+    "developerName": "AEM Watch UI Team",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": "Use the matching AEM Watch skill with an explicit project profile; the current task rules already apply."
+  }
+}

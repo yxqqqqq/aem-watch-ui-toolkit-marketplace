@@ -1,0 +1,4 @@
+interface:
+  display_name: "AEM Watch 正式资源流水线"
+  short_description: "按项目 JSON 分离处理 WPS 翻译与 UI Editor 资源"
+  default_prompt: "使用 $aem-watch-resource-pipeline，显式传入操作、当前分支项目配置和所需 manifest；打开 UI Editor 前请求 GUI 执行授权。"
