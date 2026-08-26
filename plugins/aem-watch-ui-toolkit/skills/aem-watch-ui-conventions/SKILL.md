@@ -10,7 +10,7 @@ description: "实现、迁移、替换或审查 ATS308x/AEM Watch 的 LVGL 应�
 ## 选择所需参考
 
 - 修改或审查应用页面时，读取 [references/ui-implementation.md](references/ui-implementation.md)。
-- 整理、扩展或选择 `thirdparty/lib/aem` 公共控件时，再读取 [references/public-widgets.md](references/public-widgets.md)。
+- 调用、整理、扩展或选择 `thirdparty/lib/aem` 公共控件时，再读取 [references/public-widgets.md](references/public-widgets.md)；页面需要读取或覆盖其内部子控件、默认资源或事件时必须读取。
 - 新项目、换分支或从旧工程迁移规则时，读取 [references/project-onboarding.md](references/project-onboarding.md)，并按需使用 `assets/project-rules/` 模板。
 - 涉及 Figma 正式图片、翻译、`.ui` 或 UI Editor 时，本 Skill 继续约束 UI 判断，同时叠加项目指定的 Figma/资源 Skill；不要在这里复制资源流水线。
 

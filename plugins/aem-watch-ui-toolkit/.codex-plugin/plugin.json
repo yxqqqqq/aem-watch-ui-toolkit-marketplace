@@ -1,6 +1,6 @@
 {
   "name": "aem-watch-ui-toolkit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Reusable AEM Watch UI conventions and project-configured resource automation.",
   "author": {
     "name": "AEM Watch UI Team"
