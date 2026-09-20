@@ -103,6 +103,9 @@ function Write-PoiTranslationOutput {
         if ($line -eq 'RESULT=SUCCESS') {
             continue
         }
+        if ($line.StartsWith('ACTIVE_LANGUAGES=')) {
+            continue
+        }
         if ($line.StartsWith('TEXT=')) {
             $fields = $line.Substring(5).Split('|')
             if ($fields.Count -ne 6) {
@@ -203,14 +206,33 @@ if ($backend.Selected -eq 'poi') {
             ($backend.Poi.Missing -join ', ')
     }
 
+    $actualActive = @(
+        Get-PipelineWorkbookActiveLanguages -Config $config `
+            -ProjectRoot $project -WorkbookPath $workbookPath `
+            -Backend $backend
+    )
+    Write-Output "ACTIVE_LANGUAGES=$($actualActive -join ',')"
+
     $expectedActive = @()
     if ($null -ne $manifest.PSObject.Properties['active_languages']) {
         $expectedActive = @($manifest.active_languages | ForEach-Object {
             [string]$_
         })
     }
-    if ($expectedActive.Count -eq 0) {
-        throw 'Manifest active_languages is required for translation operations.'
+    if ($expectedActive.Count -gt 0) {
+        Write-Output 'ACTIVE_LANGUAGES_SOURCE=manifest-assertion'
+        if (($expectedActive -join ',') -ne ($actualActive -join ',')) {
+            throw (
+                "Manifest active_languages '$($expectedActive -join ',')' do not " +
+                "match workbook '$($actualActive -join ',')'. " +
+                'translation.languageColumns lists addressable columns, not ' +
+                'the active language set.'
+            )
+        }
+    }
+    else {
+        $expectedActive = $actualActive
+        Write-Output 'ACTIVE_LANGUAGES_SOURCE=workbook'
     }
     foreach ($entry in $entries) {
         Assert-TranslationSafety -Entry $entry -Codes $expectedActive `
@@ -436,6 +458,7 @@ try {
             $actualActive += $rowCode
         }
     }
+    Write-Output "ACTIVE_LANGUAGES=$($actualActive -join ',')"
 
     $expectedActive = @()
     if ($null -ne $manifest.PSObject.Properties['active_languages']) {
@@ -444,13 +467,19 @@ try {
         })
     }
     if ($expectedActive.Count -gt 0) {
+        Write-Output 'ACTIVE_LANGUAGES_SOURCE=manifest-assertion'
         if (($expectedActive -join ',') -ne ($actualActive -join ',')) {
-            throw "Manifest active languages '$($expectedActive -join ',')' " +
-                "do not match workbook '$($actualActive -join ',')'."
+            throw (
+                "Manifest active_languages '$($expectedActive -join ',')' do not " +
+                "match workbook '$($actualActive -join ',')'. " +
+                'translation.languageColumns lists addressable columns, not ' +
+                'the active language set.'
+            )
         }
     }
     else {
         $expectedActive = $actualActive
+        Write-Output 'ACTIVE_LANGUAGES_SOURCE=workbook'
     }
 
     $changedCells = 0

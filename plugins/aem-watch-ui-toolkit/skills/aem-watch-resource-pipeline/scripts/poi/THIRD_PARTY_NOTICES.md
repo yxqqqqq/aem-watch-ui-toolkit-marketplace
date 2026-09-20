@@ -12,4 +12,4 @@ The translation writer bundles the following Maven artifacts under the Apache Li
 | `com.zaxxer:SparseBitSet` | 1.3 | `F76B85ADB0C00721AE267B7CFDE4DA7F71D3121CC2160C9FC00C0C89F8C53C8A` |
 | `org.apache.logging.log4j:log4j-api` | 2.24.3 | `5B4A0A0CD0E751DED431C162442BDBDD53328D1F8BB2BAE5FC1BBEEE0F66D80F` |
 
-Artifacts are sourced from Maven Central. The helper `aem-watch-xls-tool.jar` is built from the adjacent `AemWatchXlsTool.java` with Java 8 bytecode compatibility; its SHA-256 is `64296FD07ED06E4F803C01CB02E0E7267E5909AC8C46185D8D6CF28AB5B77955`.
+Artifacts are sourced from Maven Central. The helper `aem-watch-xls-tool.jar` is built from the adjacent `AemWatchXlsTool.java` with Java 8 bytecode compatibility; its SHA-256 is `83B427FE51633112AA00707F16E5D56AEF003DB91C8FF815860B3B72EA5679FF`.

@@ -22,7 +22,7 @@
 
 ## 翻译与生成
 
-- `translation.languageColumns` 保存翻译表语言列；实际打包语言由调用方在显式项目配置中声明，并与翻译表语言代码行核对，不在通用流程中固定。
+- `translation.languageColumns` 保存翻译表全部可寻址语言列；实际打包语言由流水线从语言代码行的非空值读取，不在通用流程或项目配置中重复固定。
 - `generation.generatedFiles` 定义 Post 阶段必须存在且非空的文件。
 - `generation.manualDeclarations` 定义 UI Editor 生成后必须保留或恢复的手工声明。
 - `generation.preserveGeneratedSuffixes` 定义 UI Editor 只负责重写前缀、既有尾部必须从事务快照保留的生成文件；marker 必须是项目已验证的唯一文本。

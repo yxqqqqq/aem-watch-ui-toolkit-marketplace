@@ -345,6 +345,114 @@ function Resolve-PipelineTranslationBackend {
     }
 }
 
+function ConvertTo-PipelineJobBase64 {
+    param([AllowEmptyString()][string]$Text)
+
+    return [Convert]::ToBase64String(
+        [System.Text.Encoding]::UTF8.GetBytes($Text)
+    )
+}
+
+function Get-PipelineWorkbookActiveLanguages {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Config,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WorkbookPath,
+
+        $Backend
+    )
+
+    if ($null -eq $Backend) {
+        $Backend = Resolve-PipelineTranslationBackend -Config $Config `
+            -ProjectRoot $ProjectRoot
+    }
+    if ($Backend.Selected -ne 'poi' -or
+        -not $Backend.Java.Available -or
+        -not $Backend.Poi.Available) {
+        throw 'POI workbook inspection is unavailable.'
+    }
+
+    $languageColumns = Get-PipelineLanguageColumns -Config $Config
+    $jobRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+        'codex-aem-watch-resource\jobs'
+    )
+    [System.IO.Directory]::CreateDirectory($jobRoot) | Out-Null
+    $jobPath = Join-Path $jobRoot (
+        'translation-inspect-' + [guid]::NewGuid().ToString('N') + '.txt'
+    )
+    $jobLines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$jobLines.Add('version=1')
+    [void]$jobLines.Add('mode=inspect')
+    [void]$jobLines.Add(
+        'input=' + (ConvertTo-PipelineJobBase64 $WorkbookPath)
+    )
+    [void]$jobLines.Add('output=')
+    [void]$jobLines.Add("keyColumn=$([int]$Config.translation.keyColumn)")
+    [void]$jobLines.Add(
+        "languageCodeRow=$([int]$Config.translation.languageCodeRow)"
+    )
+    [void]$jobLines.Add("dataStartRow=$([int]$Config.translation.dataStartRow)")
+    foreach ($pair in $languageColumns.GetEnumerator()) {
+        [void]$jobLines.Add(
+            'language=' +
+            (ConvertTo-PipelineJobBase64 ([string]$pair.Key)) +
+            '|' + [string]$pair.Value
+        )
+    }
+    [System.IO.File]::WriteAllLines(
+        $jobPath,
+        $jobLines,
+        (New-Object System.Text.UTF8Encoding($false))
+    )
+
+    try {
+        $javaArguments = @(
+            (
+                '-Dlog4j2.loggerContextFactory=' +
+                'org.apache.logging.log4j.simple.SimpleLoggerContextFactory'
+            ),
+            '-cp',
+            $Backend.Poi.ClassPath,
+            'AemWatchXlsTool',
+            '--job',
+            $jobPath
+        )
+        $global:LASTEXITCODE = 0
+        $poiOutput = @(& $Backend.Java.Path @javaArguments 2>&1 |
+            ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -ne 0) {
+            throw "POI workbook inspection failed: $($poiOutput -join '; ')"
+        }
+        if (-not ($poiOutput -contains 'RESULT=SUCCESS')) {
+            throw 'POI workbook inspection did not report success.'
+        }
+        $languageLines = @($poiOutput | Where-Object {
+            $_.StartsWith('ACTIVE_LANGUAGES=')
+        })
+        if ($languageLines.Count -ne 1) {
+            throw 'POI workbook inspection returned an invalid language result.'
+        }
+        $serialized = $languageLines[0].Substring('ACTIVE_LANGUAGES='.Length)
+        $languages = @(
+            $serialized.Split(',') |
+                ForEach-Object { $_.Trim() } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        if ($languages.Count -eq 0) {
+            throw 'The workbook language code row has no active languages.'
+        }
+        return $languages
+    }
+    finally {
+        Remove-Item -LiteralPath $jobPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Resolve-AemWatchPipelineConfig {
     param(
         [string]$ProjectRoot,

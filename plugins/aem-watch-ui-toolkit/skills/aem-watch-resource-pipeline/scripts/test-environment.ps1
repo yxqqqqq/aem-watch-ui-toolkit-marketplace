@@ -178,6 +178,32 @@ if ($Capability -eq 'Translation') {
         Add-EnvironmentCheck -Condition $poiRuntimeOk `
             -Message "POI writer runtime starts: $($poiVersion -join '; ')" `
             -Hint 'Check the configured Java runtime and reinstall the Plugin package.'
+
+        $activeLanguages = @()
+        $inspectionError = ''
+        if ($poiRuntimeOk -and
+            (Test-Path -LiteralPath $translationTable -PathType Leaf)) {
+            try {
+                $activeLanguages = @(
+                    Get-PipelineWorkbookActiveLanguages -Config $config `
+                        -ProjectRoot $project -WorkbookPath $translationTable `
+                        -Backend $backend
+                )
+            }
+            catch {
+                $inspectionError = $_.Exception.Message
+            }
+        }
+        Add-EnvironmentCheck -Condition ($activeLanguages.Count -gt 0) `
+            -Message "workbook active languages detected: $($activeLanguages -join ',')" `
+            -Hint (
+                'Check translation.languageColumns and translation.languageCodeRow. ' +
+                $inspectionError
+            )
+        if ($activeLanguages.Count -gt 0) {
+            Write-Output "ACTIVE_LANGUAGES=$($activeLanguages -join ',')"
+            Write-Output 'ACTIVE_LANGUAGES_SOURCE=workbook'
+        }
     }
     else {
         $wpsRoots = @(

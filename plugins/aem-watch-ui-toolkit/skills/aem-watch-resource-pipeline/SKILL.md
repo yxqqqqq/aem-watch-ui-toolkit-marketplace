@@ -39,7 +39,7 @@ description: "按项目 JSON 配置处理 AEM Watch 的正式图片、旧版 XLS
 - 项目配置从 [project-profile.template.json](assets/project-profile.template.json) 创建并随对应分支维护。
 - 本机配置从 [local-config.template.json](assets/local-config.template.json) 创建；Java、WPS、Python 等绝对路径只写入 `%USERPROFILE%/.codex/config/aem-watch-resource-pipeline.local.json`，不得提交。
 - POI 依赖固定随 Plugin 分发，不在资源任务中联网下载；WPS COM 与当前 UI Editor 自动化只支持 Windows。环境不可用时给出缺失项和本机配置入口，不自动下载未知来源工具、不绕过许可证。
-- application、board、resolution、语言、路径、输出和变化白名单只来自显式项目配置；项目 wrapper 负责选择与当前任务规则一致的配置。
+- application、board、resolution、路径、输出和变化白名单只来自显式项目配置；`translation.languageColumns` 只描述全部可寻址语言列，当前启用语言由翻译表语言代码行检测。项目 wrapper 负责选择与当前任务规则一致的配置。
 
 ## 稳定资源规则
 
@@ -55,7 +55,7 @@ description: "按项目 JSON 配置处理 AEM Watch 的正式图片、旧版 XLS
 从 `scripts/invoke-pipeline.ps1` 调用，并始终传入 `-ConfigPath`：
 
 - `ResourceEnvironment`：只读检查图片/UI 资源路径需要的项目文件、UI Editor 和 Python；不探测翻译后端。
-- `TranslationEnvironment`：只读选择并检查 `auto`、`poi` 或 `wps` 文本后端；失败时停止文本步骤并报告缺失的 Java、Plugin 文件或 WPS 配置。
+- `TranslationEnvironment`：只读选择并检查 `auto`、`poi` 或 `wps` 文本后端；POI 路径同时输出工作簿实际 `ACTIVE_LANGUAGES`。失败时停止文本步骤并报告缺失的 Java、Plugin 文件或 WPS 配置。
 - `ResourcePrepare`：执行 `ResourceEnvironment` 和资源 `Pre`。
 - `TranslationPrepare`：执行 `TranslationEnvironment` 和翻译 dry-run。
 - `TranslationDryRun`：验证 manifest 与翻译写入计划，不修改表格。

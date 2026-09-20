@@ -6,8 +6,8 @@
 
 1. 读取 [configuration.md](configuration.md)，合并默认、本机和项目覆盖配置。
 2. 按 [case-manifest.md](case-manifest.md) 创建工作区外的临时 UTF-8 manifest。
-3. 核对翻译表语言代码行与显式项目配置中的全部当前打包语言；不得从示例 manifest、分支名或历史项目照抄。
-4. 新字符串覆盖全部 `active_languages`。Figma 只提供部分语言时，只有用户允许 AI 翻译的语言才主动补齐，并在报告中标记待人工审核。
+3. 先运行 `TranslationEnvironment`，以其从翻译表语言代码行读取的 `ACTIVE_LANGUAGES` 为准；`translation.languageColumns` 是全部可寻址列，不是当前打包语言列表，不得把两者等同。
+4. manifest 可省略 `active_languages` 并由流水线读取工作簿；若显式填写，它是必须与工作簿完全一致的安全断言。新字符串覆盖全部实际启用语言。Figma 只提供部分语言时，只有用户允许 AI 翻译的语言才主动补齐，并在报告中标记待人工审核。
 5. 只有 Figma 明确存在手动换行或用户明确要求时，才允许 `[CR]`、CR 或 LF。
 6. 保持 printf 占位符的类型、顺序和数量一致。
 

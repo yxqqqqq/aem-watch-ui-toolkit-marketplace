@@ -21,7 +21,7 @@
 - 非空且只允许本流程预期变化的 `generation.allowedChangePatterns`。
 - 当前项目需要保留的 `generation.manualDeclarations`；不需要时显式使用空数组。
 - UI Editor 会覆盖、但项目必须保留的生成文件尾部使用 `generation.preserveGeneratedSuffixes` 声明文件和唯一 marker；不需要时使用空数组。
-- 当前翻译表布局与打包语言；示例语言不能替代项目验证。
+- 当前翻译表布局；`translation.languageColumns` 列出全部可寻址语言列，当前打包语言由翻译表 `languageCodeRow` 中的非空代码决定。示例语言不能替代工作簿检测。
 - 翻译表若依赖保护包装，在 `translation.protectedWrapperTokens` 中声明；默认 `translation.backend=auto` 会据此选择 POI 或 WPS，不把本机工具路径写入项目配置。
 
 所有项目路径相对于自动发现的 Git 工作区根，支持 `{application}`、`{board}`、`{resolution}` 占位符。调用方使用当前任务已经生效的项目规则选择 profile；流水线只校验 profile 与板级配置、资源 CMake、UI 工程和实际路径的一致性，不自行搜索规则或切换 profile。
@@ -63,7 +63,7 @@
 
 Java 未配置时，文本路径尝试 PATH `java.exe`；支持 Java 8 或更高版本，POI JAR 固定随 Plugin 分发。Python 未配置时，脚本依次尝试 Codex 内置 Python、PATH `python.exe` 和 `py.exe -3`。资源脚本采用 JSON 和 Python 标准库，不需要 PyYAML。
 
-WPS COM 与当前 UI Editor 自动化是 Windows 专用路径。`ResourceEnvironment` 只检查资源生成条件；`TranslationEnvironment` 只检查实际选中的 POI/WPS 文本后端。Java/POI 或 WPS 缺失只阻塞文本步骤，UI Editor 或 Python 缺失只阻塞资源生成。不自动下载工具、不接受未知来源的安装包，也不使用未验证的其他表格库覆盖正式工作簿。
+WPS COM 与当前 UI Editor 自动化是 Windows 专用路径。`ResourceEnvironment` 只检查资源生成条件；`TranslationEnvironment` 只检查实际选中的 POI/WPS 文本后端，POI 路径还会只读输出工作簿实际启用语言。Java/POI 或 WPS 缺失只阻塞文本步骤，UI Editor 或 Python 缺失只阻塞资源生成。不自动下载工具、不接受未知来源的安装包，也不使用未验证的其他表格库覆盖正式工作簿。
 
 ## 资源事务
 

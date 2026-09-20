@@ -29,7 +29,8 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 
 public final class AemWatchXlsTool {
-    private static final String VERSION = "1";
+    private static final String TOOL_VERSION = "2";
+    private static final String JOB_VERSION = "1";
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
 
@@ -39,7 +40,7 @@ public final class AemWatchXlsTool {
     public static void main(String[] args) {
         try {
             if (args.length == 1 && "--version".equals(args[0])) {
-                System.out.println("AEM_WATCH_XLS_TOOL=" + VERSION);
+                System.out.println("AEM_WATCH_XLS_TOOL=" + TOOL_VERSION);
                 System.out.println("POI=" + HSSFWorkbook.class.getPackage().getImplementationVersion());
                 return;
             }
@@ -72,8 +73,9 @@ public final class AemWatchXlsTool {
                 if ("version".equals(name)) {
                     job.version = value;
                 } else if ("mode".equals(name)) {
+                    job.inspect = "inspect".equals(value);
                     job.apply = "apply".equals(value);
-                    if (!job.apply && !"dry-run".equals(value)) {
+                    if (!job.inspect && !job.apply && !"dry-run".equals(value)) {
                         throw new IllegalArgumentException("invalid mode: " + value);
                     }
                 } else if ("input".equals(name)) {
@@ -122,6 +124,11 @@ public final class AemWatchXlsTool {
              HSSFWorkbook workbook = new HSSFWorkbook(fileSystem, true)) {
             HSSFSheet sheet = workbook.getSheetAt(0);
             List<String> actualLanguages = readActiveLanguages(sheet, job);
+            if (job.inspect) {
+                System.out.println("ACTIVE_LANGUAGES=" + String.join(",", actualLanguages));
+                System.out.println("RESULT=SUCCESS");
+                return;
+            }
             if (!actualLanguages.equals(job.activeLanguages)) {
                 throw new IllegalStateException(
                     "active languages mismatch: expected " + job.activeLanguages +
@@ -397,6 +404,7 @@ public final class AemWatchXlsTool {
 
     private static final class Job {
         private String version;
+        private boolean inspect;
         private boolean apply;
         private File input;
         private File output;
@@ -408,7 +416,7 @@ public final class AemWatchXlsTool {
         private final List<Update> updates = new ArrayList<>();
 
         private void validate() {
-            if (!VERSION.equals(version)) {
+            if (!JOB_VERSION.equals(version)) {
                 throw new IllegalArgumentException("unsupported job version: " + version);
             }
             if (input == null || !input.isFile()) {
@@ -420,7 +428,10 @@ public final class AemWatchXlsTool {
             if (keyColumn < 1 || languageCodeRow < 1 || dataStartRow < 1) {
                 throw new IllegalArgumentException("row and column numbers are one-based");
             }
-            if (languageColumns.isEmpty() || activeLanguages.isEmpty() || updates.isEmpty()) {
+            if (languageColumns.isEmpty()) {
+                throw new IllegalArgumentException("language columns are required");
+            }
+            if (!inspect && (activeLanguages.isEmpty() || updates.isEmpty())) {
                 throw new IllegalArgumentException("languages, active languages and updates are required");
             }
         }
