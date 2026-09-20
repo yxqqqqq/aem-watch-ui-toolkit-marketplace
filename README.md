@@ -5,7 +5,7 @@
 ## 包含内容
 
 - `$aem-watch-ui-toolkit:aem-watch-ui-conventions`：LVGL 页面实现、生命周期、刷新、失败处理和公共控件约定。
-- `$aem-watch-ui-toolkit:aem-watch-resource-pipeline`：由项目 JSON 驱动的 WPS 翻译表、UI Editor、资源状态、备份、回滚和 Post 检查。
+- `$aem-watch-ui-toolkit:aem-watch-resource-pipeline`：由项目 JSON 驱动的旧版 XLS 翻译、UI Editor、资源状态、备份、回滚和 Post 检查；标准工作簿使用内置 POI，WPS 保留为保护包装兼容后端。
 
 Plugin 源位于 `plugins/aem-watch-ui-toolkit/`；`.agents/plugins/marketplace.json` 是 Codex 的团队 Marketplace 入口。不要从 Codex 缓存目录复制或维护另一份实现。
 
@@ -20,7 +20,7 @@ Plugin 源位于 `plugins/aem-watch-ui-toolkit/`；`.agents/plugins/marketplace.
 
 ## 本机配置
 
-WPS、Python 和其他安装路径属于使用者本机配置。根据 `plugins/aem-watch-ui-toolkit/skills/aem-watch-resource-pipeline/assets/local-config.template.json` 创建 `%USERPROFILE%/.codex/config/aem-watch-resource-pipeline.local.json`，不要提交到 Plugin 或产品仓库。WPS 不可用时只暂停翻译表步骤并请求用户补充路径。
+Java、WPS、Python 和其他安装路径属于使用者本机配置。根据 `plugins/aem-watch-ui-toolkit/skills/aem-watch-resource-pipeline/assets/local-config.template.json` 创建 `%USERPROFILE%/.codex/config/aem-watch-resource-pipeline.local.json`，不要提交到 Plugin 或产品仓库。默认文本后端只需要 Java 8 或更高版本；只有保护包装或显式 `backend=wps` 才要求 WPS。
 
 ## 维护与发布
 

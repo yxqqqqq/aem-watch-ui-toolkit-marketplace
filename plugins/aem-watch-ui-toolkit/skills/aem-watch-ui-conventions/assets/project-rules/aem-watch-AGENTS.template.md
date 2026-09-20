@@ -23,4 +23,4 @@
 - `{{PROJECT_SPECIFIC_RESOURCE_GATES}}`
 - `{{PROJECT_SPECIFIC_FEATURE_BOUNDARIES}}`
 
-普通页面实现遵守 `$aem-watch-ui-conventions`，本文件只写当前项目覆盖。正式资源流程遵守项目 Figma/资源 Skill，不在本文件复制脚本步骤。
+普通页面实现遵守 `$aem-watch-ui-toolkit:aem-watch-ui-conventions`，本文件只写当前项目覆盖。正式资源流程遵守项目 Figma/资源 Skill，不在本文件复制脚本步骤。

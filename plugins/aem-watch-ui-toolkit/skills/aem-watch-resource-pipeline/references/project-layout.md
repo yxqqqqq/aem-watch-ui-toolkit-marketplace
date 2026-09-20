@@ -12,7 +12,7 @@
 | `project.rootMarkers` | 自动发现项目根目录 |
 | `paths.resourceRoot` | UI 资源根目录 |
 | `paths.uiProject` | UI Editor 工程 |
-| `paths.translationTable` | 受保护多语言翻译表 |
+| `paths.translationTable` | 旧版 XLS 多语言翻译表 |
 | `paths.includeHeader` | 生成资源声明头文件 |
 | `paths.stringMap` | 生成字符串映射 |
 | `paths.boardResourceRoot` | 正式板级资源目录 |

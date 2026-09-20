@@ -23,6 +23,6 @@
 
 ## 规则与 Skill
 
-- 普通 AEM Watch UI 实现使用 `$aem-watch-ui-conventions`。
+- 普通 AEM Watch UI 实现使用 `$aem-watch-ui-toolkit:aem-watch-ui-conventions`。
 - Figma 和正式资源任务使用 `{{PROJECT_FIGMA_SKILL}}`；资源脚本配置为 `{{PIPELINE_CONFIG}}`。
 - 目标目录存在更近的 `AGENTS.md` 时，下级差异优先。

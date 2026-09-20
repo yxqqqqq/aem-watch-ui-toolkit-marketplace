@@ -21,7 +21,7 @@ powershell -ExecutionPolicy Bypass -File "<skill>/scripts/invoke-pipeline.ps1" `
   -Action ResourcePrepare -ManifestPath "<case.json>" -ConfigPath "<project-config.json>"
 ```
 
-`-ConfigPath` 不得省略。`ResourcePrepare` 依次执行资源环境检查和资源 Pre。纯图片/UI 任务不要求 WPS；同时修改文本时，先单独完成 `TranslationPrepare` 和 `TranslationApply`。
+`-ConfigPath` 不得省略。`ResourcePrepare` 依次执行资源环境检查和资源 Pre。纯图片/UI 任务不探测文本后端；同时修改文本时，先单独完成 `TranslationPrepare` 和 `TranslationApply`。
 
 ## 事务化生成
 

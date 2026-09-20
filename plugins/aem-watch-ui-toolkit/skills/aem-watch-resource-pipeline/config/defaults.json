@@ -29,36 +29,20 @@
     "downloadTool": "download_figma_images"
   },
   "tools": {
+    "javaExecutable": "",
     "wpsRoots": [],
     "wpsProgId": "KET.Application",
     "pythonExecutable": "",
     "uiEditorGenerationMode": "生成资源 -> 质量最高"
   },
   "translation": {
+    "backend": "auto",
     "keyColumn": 1,
     "languageCodeRow": 2,
     "dataStartRow": 3,
     "forcedBreakToken": "[CR]",
-    "languageColumns": {
-      "zhC": 2,
-      "enG": 3,
-      "tr": 4,
-      "de": 5,
-      "es": 6,
-      "fr": 7,
-      "sv": 8,
-      "fa": 9,
-      "pl": 10,
-      "he": 11,
-      "ar": 12,
-      "id": 13,
-      "ru": 14,
-      "pt": 15
-    },
-    "protectedWrapperTokens": [
-      "E-SafeNet",
-      "LOCK"
-    ]
+    "languageColumns": {},
+    "protectedWrapperTokens": []
   },
   "generation": {
     "languageResourceStem": "bt_watch",

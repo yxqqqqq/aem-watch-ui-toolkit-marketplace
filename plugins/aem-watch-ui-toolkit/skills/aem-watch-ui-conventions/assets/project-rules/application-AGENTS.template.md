@@ -1,6 +1,6 @@
 # 应用页面项目覆盖
 
-本文件只记录 `{{APPLICATION_SOURCE_ROOT}}` 在当前分支相对于 `$aem-watch-ui-conventions` 的差异。
+本文件只记录 `{{APPLICATION_SOURCE_ROOT}}` 在当前分支相对于 `$aem-watch-ui-toolkit:aem-watch-ui-conventions` 的差异。
 
 ## 已验证能力
 

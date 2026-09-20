@@ -1,6 +1,6 @@
 {
   "name": "aem-watch-ui-toolkit",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Reusable AEM Watch UI conventions and project-configured resource automation.",
   "author": {
     "name": "AEM Watch UI Team"
@@ -16,7 +16,7 @@
   "interface": {
     "displayName": "AEM Watch UI Toolkit",
     "shortDescription": "AEM Watch UI conventions and guarded resource workflows.",
-    "longDescription": "Provides reusable AEM Watch UI conventions plus project-JSON-driven WPS translation and UI Editor resource workflows. Product board, resolution and paths remain in each repository.",
+    "longDescription": "Provides reusable AEM Watch UI conventions plus project-JSON-driven legacy XLS translation and UI Editor resource workflows. Standard workbooks use bundled POI, with WPS retained for protected wrappers. Product board, resolution and paths remain in each repository.",
     "developerName": "AEM Watch UI Team",
     "category": "Productivity",
     "capabilities": [

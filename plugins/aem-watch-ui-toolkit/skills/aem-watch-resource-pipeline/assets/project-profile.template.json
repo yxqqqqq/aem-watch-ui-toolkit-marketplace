@@ -13,6 +13,15 @@
     "resourceGenerationPolicy": "project",
     "regenerateResourcesOnlyWhenChanged": true
   },
+  "translation": {
+    "backend": "auto",
+    "keyColumn": 1,
+    "languageCodeRow": 2,
+    "dataStartRow": 3,
+    "forcedBreakToken": "[CR]",
+    "languageColumns": {},
+    "protectedWrapperTokens": []
+  },
   "generation": {
     "generatedFiles": [],
     "allowedChangePatterns": [],

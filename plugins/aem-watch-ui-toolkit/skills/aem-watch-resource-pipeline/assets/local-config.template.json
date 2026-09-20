@@ -1,9 +1,8 @@
 {
   "schemaVersion": 1,
   "tools": {
+    "javaExecutable": "",
     "pythonExecutable": "",
-    "wpsRoots": [
-      "C:/Path/To/WPS Office"
-    ]
+    "wpsRoots": []
   }
 }

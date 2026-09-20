@@ -21,11 +21,14 @@ UI 工程采用截断 key 时沿用既有结果，不新增第二个映射。
 
 ## 写入和生成
 
-翻译表受 E-SafeNet 保护。禁止转换成 `.xlsx` 或使用普通 XLS 库覆盖。
+正式翻译表保持原有 `.xls`/OLE2 格式。禁止转换成 `.xlsx`，也禁止用未验证的普通 XLS 库直接覆盖。
 
-1. 运行 `TranslationPrepare -ManifestPath <case.json> -ConfigPath <project-config.json> -RegisterWps`。
-2. 解决全部环境和 dry-run 问题。找不到 WPS 路径时停止文本步骤，请用户从 `assets/local-config.template.json` 补充本机配置；不要改用普通 XLS 库覆盖受保护文件。
-3. 运行 `TranslationApply -ManifestPath <case.json> -ConfigPath <project-config.json> -RegisterWps`；脚本必须备份、通过 WPS COM 保存，并重新打开验证保护包装、键唯一性、打包语言和换行。
-4. 翻译表变化属于正式资源输入变化，必须按 [resource-generation-path.md](resource-generation-path.md) 的事务要求生成和检查。
+1. 运行 `TranslationPrepare -ManifestPath <case.json> -ConfigPath <project-config.json>`。
+2. `translation.backend=auto` 时，标准 OLE/BIFF8 工作簿优先使用 Plugin 内置 POI 写入器；配置了 `protectedWrapperTokens` 的工作簿选择 WPS。项目确有兼容性要求时可显式使用 `poi` 或 `wps`，但 `poi` 不接受保护包装标记。
+3. 解决全部环境和 dry-run 问题。POI 路径只需要可用 Java 运行时，依赖随 Plugin 固定分发；WPS 路径需要本机 `tools.wpsRoots` 和 COM，只有该路径需要 `-RegisterWps`。
+4. 运行 `TranslationApply -ManifestPath <case.json> -ConfigPath <project-config.json>`。两种后端都必须先备份并重新打开验证键唯一性、打包语言和最终文本：
+   - POI 先写同目录候选文件，验证目标值、根 CLSID 和全部非 `Workbook` OLE 流，再替换正式表；任何失败都不覆盖正式表。
+   - WPS 通过 COM 保存，并验证配置声明的保护包装标记仍存在。
+5. 翻译表变化属于正式资源输入变化，必须按 [resource-generation-path.md](resource-generation-path.md) 的事务要求生成和检查。
 
 文本写入不授权编译；可以只完成翻译写入与资源收尾。

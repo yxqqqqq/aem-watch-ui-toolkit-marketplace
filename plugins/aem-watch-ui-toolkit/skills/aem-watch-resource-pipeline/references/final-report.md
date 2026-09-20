@@ -21,7 +21,7 @@
 - 翻译表完整 key、UI key、生成符号、修改语言和最终文本。
 - `[CR]`/CR/LF 与 printf 占位符检查结果。
 - AI 翻译及待人工审核项。
-- WPS 缺失时明确说明文本步骤已暂停，以及需要用户补充的本机配置字段。
+- 报告实际选择的 `poi`/`wps` 文本后端；不可用时说明文本步骤已暂停，以及需要补充的 Java、Plugin 文件或 WPS 本机配置。
 - 加载的配置文件和生效的 application、board、resolution。
 - UI 工程、生成模式、事务结果、变化的正式文件和已恢复的临时文件。
 - 资源状态是 current、changed、recorded 还是 skipped，以及状态文件是否已更新。

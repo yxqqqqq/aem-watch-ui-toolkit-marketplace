@@ -80,6 +80,64 @@ function Assert-TranslationSafety {
     }
 }
 
+function ConvertTo-TranslationBase64 {
+    param([AllowEmptyString()][string]$Text)
+
+    return [Convert]::ToBase64String(
+        [System.Text.Encoding]::UTF8.GetBytes($Text)
+    )
+}
+
+function ConvertFrom-TranslationBase64 {
+    param([AllowEmptyString()][string]$Text)
+
+    return [System.Text.Encoding]::UTF8.GetString(
+        [Convert]::FromBase64String($Text)
+    )
+}
+
+function Write-PoiTranslationOutput {
+    param([string[]]$Lines)
+
+    foreach ($line in $Lines) {
+        if ($line -eq 'RESULT=SUCCESS') {
+            continue
+        }
+        if ($line.StartsWith('TEXT=')) {
+            $fields = $line.Substring(5).Split('|')
+            if ($fields.Count -ne 6) {
+                throw "Invalid POI TEXT result: $line"
+            }
+            $key = ConvertFrom-TranslationBase64 $fields[0]
+            $code = ConvertFrom-TranslationBase64 $fields[1]
+            $current = ConvertFrom-TranslationBase64 $fields[4]
+            $proposed = ConvertFrom-TranslationBase64 $fields[5]
+            Write-Output (
+                "TEXT key={0} lang={1} row={2} current={3} proposed={4}" -f
+                $key,
+                $code,
+                $fields[2],
+                ($current -replace "`r", '<CR>' -replace "`n", '<LF>'),
+                ($proposed -replace "`r", '<CR>' -replace "`n", '<LF>')
+            )
+            continue
+        }
+        if ($line.StartsWith('MISSING_OPTIONAL=')) {
+            $fields = $line.Substring(17).Split('|')
+            if ($fields.Count -ne 2) {
+                throw "Invalid POI MISSING_OPTIONAL result: $line"
+            }
+            Write-Output (
+                'MISSING_OPTIONAL key={0} languages={1}' -f
+                (ConvertFrom-TranslationBase64 $fields[0]),
+                $fields[1]
+            )
+            continue
+        }
+        Write-Output $line
+    }
+}
+
 $resolved = Resolve-AemWatchPipelineConfig -ProjectRoot $ProjectRoot `
     -ConfigPath $ConfigPath -LocalConfigPath $LocalConfigPath
 $config = $resolved.Config
@@ -121,6 +179,177 @@ $wrapperTokens = @(
         ForEach-Object { [string]$_ }
 )
 $wpsProgId = [string]$config.tools.wpsProgId
+
+$backend = Resolve-PipelineTranslationBackend -Config $config `
+    -ProjectRoot $project
+Write-Output "TRANSLATION_BACKEND_REQUESTED=$($backend.Requested)"
+Write-Output "TRANSLATION_BACKEND=$($backend.Selected)"
+
+if ($backend.Selected -eq 'poi') {
+    if (-not $backend.PoiAllowed) {
+        throw (
+            'The POI backend cannot edit workbooks that require ' +
+            'translation.protectedWrapperTokens. Use backend=wps.'
+        )
+    }
+    if (-not $backend.Java.Available) {
+        throw (
+            'Java runtime not found. Configure tools.javaExecutable in the ' +
+            'local pipeline configuration or use backend=wps.'
+        )
+    }
+    if (-not $backend.Poi.Available) {
+        throw 'Bundled POI writer is incomplete: ' +
+            ($backend.Poi.Missing -join ', ')
+    }
+
+    $expectedActive = @()
+    if ($null -ne $manifest.PSObject.Properties['active_languages']) {
+        $expectedActive = @($manifest.active_languages | ForEach-Object {
+            [string]$_
+        })
+    }
+    if ($expectedActive.Count -eq 0) {
+        throw 'Manifest active_languages is required for translation operations.'
+    }
+    foreach ($entry in $entries) {
+        Assert-TranslationSafety -Entry $entry -Codes $expectedActive `
+            -ForcedBreakToken $forcedBreakToken
+    }
+
+    if ($Apply) {
+        if ([string]::IsNullOrWhiteSpace($BackupRoot)) {
+            $BackupRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+                'codex-aem-watch-resource\' + (Get-Date -Format 'yyyyMMdd_HHmmss')
+            )
+        }
+        $resolvedBackupRoot = [System.IO.Path]::GetFullPath($BackupRoot)
+        New-Item -ItemType Directory -Path $resolvedBackupRoot -Force |
+            Out-Null
+        $backupName = '{0}.before{1}' -f
+            [System.IO.Path]::GetFileNameWithoutExtension($workbookPath),
+            [System.IO.Path]::GetExtension($workbookPath)
+        $backupPath = Join-Path $resolvedBackupRoot $backupName
+        Copy-Item -LiteralPath $workbookPath -Destination $backupPath -Force
+        $sourceHash = (
+            Get-FileHash -LiteralPath $workbookPath -Algorithm SHA256
+        ).Hash
+        $backupHash = (
+            Get-FileHash -LiteralPath $backupPath -Algorithm SHA256
+        ).Hash
+        if ($sourceHash -ne $backupHash) {
+            throw 'Workbook backup hash mismatch.'
+        }
+        Write-Output "BACKUP=$backupPath"
+        Write-Output "BACKUP_SHA256=$backupHash"
+    }
+
+    $jobRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+        'codex-aem-watch-resource\jobs'
+    )
+    [System.IO.Directory]::CreateDirectory($jobRoot) | Out-Null
+    $jobPath = Join-Path $jobRoot (
+        'translation-' + [guid]::NewGuid().ToString('N') + '.txt'
+    )
+    $candidatePath = ''
+    if ($Apply) {
+        $candidatePath = Join-Path (
+            [System.IO.Path]::GetDirectoryName($workbookPath)
+        ) (
+            '.' + [System.IO.Path]::GetFileNameWithoutExtension($workbookPath) +
+            '.codex-' + [guid]::NewGuid().ToString('N') +
+            [System.IO.Path]::GetExtension($workbookPath)
+        )
+    }
+
+    $jobLines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$jobLines.Add('version=1')
+    [void]$jobLines.Add($(if ($Apply) { 'mode=apply' } else { 'mode=dry-run' }))
+    [void]$jobLines.Add(
+        'input=' + (ConvertTo-TranslationBase64 $workbookPath)
+    )
+    [void]$jobLines.Add(
+        'output=' + $(
+            if ($Apply) { ConvertTo-TranslationBase64 $candidatePath }
+            else { '' }
+        )
+    )
+    [void]$jobLines.Add("keyColumn=$keyColumn")
+    [void]$jobLines.Add("languageCodeRow=$languageCodeRow")
+    [void]$jobLines.Add("dataStartRow=$dataStartRow")
+    foreach ($pair in $languageColumns.GetEnumerator()) {
+        [void]$jobLines.Add(
+            'language=' + (ConvertTo-TranslationBase64 ([string]$pair.Key)) +
+            '|' + [string]$pair.Value
+        )
+    }
+    foreach ($code in $expectedActive) {
+        [void]$jobLines.Add(
+            'active=' + (ConvertTo-TranslationBase64 $code)
+        )
+    }
+    foreach ($entry in $entries) {
+        foreach ($property in $entry.translations.PSObject.Properties) {
+            [void]$jobLines.Add(
+                'set=' +
+                (ConvertTo-TranslationBase64 ([string]$entry.table_key)) + '|' +
+                (ConvertTo-TranslationBase64 ([string]$property.Name)) + '|' +
+                (ConvertTo-TranslationBase64 ([string]$property.Value)
+                )
+            )
+        }
+    }
+    [System.IO.File]::WriteAllLines(
+        $jobPath,
+        $jobLines,
+        (New-Object System.Text.UTF8Encoding($false))
+    )
+
+    try {
+        $javaArguments = @(
+            (
+                '-Dlog4j2.loggerContextFactory=' +
+                'org.apache.logging.log4j.simple.SimpleLoggerContextFactory'
+            ),
+            '-cp',
+            $backend.Poi.ClassPath,
+            'AemWatchXlsTool',
+            '--job',
+            $jobPath
+        )
+        $global:LASTEXITCODE = 0
+        $poiOutput = @(& $backend.Java.Path @javaArguments 2>&1 |
+            ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -ne 0) {
+            throw "POI translation writer failed: $($poiOutput -join '; ')"
+        }
+        if (-not ($poiOutput -contains 'RESULT=SUCCESS')) {
+            throw 'POI translation writer did not report success.'
+        }
+
+        Write-PoiTranslationOutput -Lines $poiOutput
+        if ($Apply) {
+            if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+                throw "POI translation output not found: $candidatePath"
+            }
+            [System.IO.File]::Move($candidatePath, $workbookPath, $true)
+        }
+        Write-Output "WORKBOOK_SHA256=$(
+            (Get-FileHash -LiteralPath $workbookPath -Algorithm SHA256).Hash
+        )"
+        Write-Output 'RESULT=SUCCESS'
+    }
+    finally {
+        if (Test-Path -LiteralPath $jobPath -PathType Leaf) {
+            Remove-Item -LiteralPath $jobPath -Force
+        }
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath) -and
+            (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+            Remove-Item -LiteralPath $candidatePath -Force
+        }
+    }
+    return
+}
 
 $wpsRoots = @()
 if ($PSBoundParameters.ContainsKey('WpsRoot')) {

@@ -228,6 +228,123 @@ function Find-PipelineWpsSpreadsheet {
     return $null
 }
 
+function Resolve-PipelineJavaRuntime {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Config,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot
+    )
+
+    $configured = [string]$Config.tools.javaExecutable
+    if (-not [string]::IsNullOrWhiteSpace($configured)) {
+        $path = Resolve-PipelineToolPath -ProjectRoot $ProjectRoot `
+            -Path $configured
+        return [pscustomobject]@{
+            Path = $path
+            Source = 'configured tools.javaExecutable'
+            Available = (Test-Path -LiteralPath $path -PathType Leaf)
+        }
+    }
+
+    $command = Get-Command 'java.exe' -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $command) {
+        return [pscustomobject]@{
+            Path = $command.Source
+            Source = 'PATH'
+            Available = $true
+        }
+    }
+
+    return [pscustomobject]@{
+        Path = ''
+        Source = 'not found'
+        Available = $false
+    }
+}
+
+function Get-PipelinePoiTool {
+    $root = Join-Path $PSScriptRoot 'poi'
+    $helper = Join-Path $root 'aem-watch-xls-tool.jar'
+    $expectedLibraries = @(
+        'commons-codec-1.20.0.jar',
+        'commons-collections4-4.5.0.jar',
+        'commons-io-2.21.0.jar',
+        'commons-math3-3.6.1.jar',
+        'log4j-api-2.24.3.jar',
+        'poi-5.5.1.jar',
+        'SparseBitSet-1.3.jar'
+    )
+    $libraries = @($expectedLibraries | ForEach-Object {
+        Join-Path (Join-Path $root 'lib') $_
+    })
+    $missing = @($helper) + $libraries |
+        Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }
+    $classPath = (@($helper) + $libraries) -join (
+        [System.IO.Path]::PathSeparator
+    )
+
+    return [pscustomobject]@{
+        Root = $root
+        Helper = $helper
+        Libraries = $libraries
+        ClassPath = $classPath
+        Missing = @($missing)
+        Available = (@($missing).Count -eq 0)
+    }
+}
+
+function Resolve-PipelineTranslationBackend {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Config,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot
+    )
+
+    $requested = [string]$Config.translation.backend
+    if ([string]::IsNullOrWhiteSpace($requested)) {
+        $requested = 'auto'
+    }
+    if ($requested -notin @('auto', 'poi', 'wps')) {
+        throw "Unsupported translation backend '$requested'."
+    }
+
+    $wrapperTokens = @(
+        $Config.translation.protectedWrapperTokens |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    $java = Resolve-PipelineJavaRuntime -Config $Config `
+        -ProjectRoot $ProjectRoot
+    $poi = Get-PipelinePoiTool
+    $poiAllowed = ($wrapperTokens.Count -eq 0)
+    $poiReady = ($poiAllowed -and $java.Available -and $poi.Available)
+
+    $selected = $requested
+    if ($requested -eq 'auto') {
+        if ($poiReady) {
+            $selected = 'poi'
+        }
+        else {
+            $selected = 'wps'
+        }
+    }
+
+    return [pscustomobject]@{
+        Requested = $requested
+        Selected = $selected
+        PoiAllowed = $poiAllowed
+        PoiReady = $poiReady
+        WrapperTokens = $wrapperTokens
+        Java = $java
+        Poi = $poi
+    }
+}
+
 function Resolve-AemWatchPipelineConfig {
     param(
         [string]$ProjectRoot,

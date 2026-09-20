@@ -19,8 +19,8 @@
 | 类型 | 存放位置 | 典型内容 |
 |---|---|---|
 | 个人习惯 | 用户全局 `AGENTS.md` | 编译授权、目标路径核对、规则维护方式、报告习惯 |
-| UI 通用经验 | 本 Skill | 生命周期、刷新职责、失败处理、布局、宏、文本和控件抽象 |
-| 资源流水线 | Figma/资源 Skill | Figma 读取、图片导出、翻译表、UI Editor、事务生成和 Post |
+| UI 通用经验 | `$aem-watch-ui-toolkit:aem-watch-ui-conventions` | 生命周期、刷新职责、失败处理、布局、宏、文本和控件抽象 |
+| 资源流水线 | `$aem-watch-ui-toolkit:aem-watch-resource-pipeline` | 图片/翻译表、UI Editor、事务生成和 Post；项目 Figma Skill 只负责目标设计和项目路由 |
 | 项目事实 | 仓库根或 `application/aem_watch/AGENTS.md` | board、resolution、路径、构建入口、资源策略、参考工程 |
 | 模块/页面特例 | 最近的子级 `AGENTS.md` | 禁用功能、特定资源契约、模块独有参考页面 |
 

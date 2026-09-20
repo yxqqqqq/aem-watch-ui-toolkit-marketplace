@@ -141,55 +141,81 @@ else {
         -Hint 'Check paths.translationTable in the current branch profile.'
 }
 
-$wpsRoots = @(
-    $config.tools.wpsRoots |
-        ForEach-Object { [string]$_ } |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-        ForEach-Object { [System.IO.Path]::GetFullPath($_) }
-)
-$validWpsRoots = @($wpsRoots | Where-Object {
-    Test-Path -LiteralPath $_ -PathType Container
-})
-$wpsRootHint = (
-    'Create %USERPROFILE%\.codex\config\' +
-    'aem-watch-resource-pipeline.local.json and configure tools.wpsRoots.'
-)
-
 if ($Capability -eq 'Translation') {
-    Add-EnvironmentCheck -Condition ($validWpsRoots.Count -gt 0) `
-        -Message "at least one WPS root exists: $($validWpsRoots -join ', ')" `
-        -Hint $wpsRootHint
-}
-else {
-    Add-EnvironmentWarning -Condition ($validWpsRoots.Count -gt 0) `
-        -Message "WPS root available for optional translation work: $(
-            $validWpsRoots -join ', '
-        )" -Hint "WPS is required only when text translations change. $wpsRootHint"
-}
+    $backend = Resolve-PipelineTranslationBackend -Config $config `
+        -ProjectRoot $project
+    Write-Output "TRANSLATION_BACKEND_REQUESTED=$($backend.Requested)"
+    Write-Output "TRANSLATION_BACKEND=$($backend.Selected)"
 
-$wpsSpreadsheet = $null
-if ($validWpsRoots.Count -gt 0) {
-    $wpsSpreadsheet = Find-PipelineWpsSpreadsheet -Roots $validWpsRoots
-}
-$spreadsheetMessage = "WPS spreadsheet executable exists: $(
-    if ($null -ne $wpsSpreadsheet) { $wpsSpreadsheet.FullName } else { '' }
-)"
-if ($Capability -eq 'Translation') {
-    Add-EnvironmentCheck -Condition ($null -ne $wpsSpreadsheet) `
-        -Message $spreadsheetMessage `
-        -Hint 'Check the configured WPS roots and installed WPS version.'
-}
-else {
-    Add-EnvironmentWarning -Condition ($null -ne $wpsSpreadsheet) `
-        -Message $spreadsheetMessage `
-        -Hint 'Pure image/UI resource work can continue without WPS.'
-}
+    if ($backend.Selected -eq 'poi') {
+        Add-EnvironmentCheck -Condition $backend.PoiAllowed `
+            -Message 'POI backend is allowed for the configured workbook container' `
+            -Hint (
+                'Projects that require protectedWrapperTokens must use the WPS backend.'
+            )
+        Add-EnvironmentCheck -Condition $backend.Java.Available `
+            -Message "Java runtime exists: $($backend.Java.Path)" `
+            -Hint (
+                'Configure tools.javaExecutable in %USERPROFILE%\.codex\config\' +
+                'aem-watch-resource-pipeline.local.json.'
+            )
+        Add-EnvironmentCheck -Condition $backend.Poi.Available `
+            -Message "bundled POI writer exists: $($backend.Poi.Helper)" `
+            -Hint (
+                'Reinstall the complete aem-watch-ui-toolkit Plugin package. Missing: ' +
+                ($backend.Poi.Missing -join ', ')
+            )
 
-$wpsProgId = [string]$config.tools.wpsProgId
-$ketType = [type]::GetTypeFromProgID($wpsProgId)
-Add-EnvironmentWarning -Condition ($null -ne $ketType) `
-    -Message "$wpsProgId COM registration" `
-    -Hint 'For translation work, rerun with -RegisterWps after locating WPS.'
+        $poiRuntimeOk = $false
+        $poiVersion = @()
+        if ($backend.Java.Available -and $backend.Poi.Available) {
+            $global:LASTEXITCODE = 0
+            $poiVersion = @(& $backend.Java.Path `
+                '-Dlog4j2.loggerContextFactory=org.apache.logging.log4j.simple.SimpleLoggerContextFactory' `
+                '-cp' $backend.Poi.ClassPath 'AemWatchXlsTool' '--version' 2>&1)
+            $poiRuntimeOk = ($LASTEXITCODE -eq 0)
+        }
+        Add-EnvironmentCheck -Condition $poiRuntimeOk `
+            -Message "POI writer runtime starts: $($poiVersion -join '; ')" `
+            -Hint 'Check the configured Java runtime and reinstall the Plugin package.'
+    }
+    else {
+        $wpsRoots = @(
+            $config.tools.wpsRoots |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                ForEach-Object { [System.IO.Path]::GetFullPath($_) }
+        )
+        $validWpsRoots = @($wpsRoots | Where-Object {
+            Test-Path -LiteralPath $_ -PathType Container
+        })
+        $wpsRootHint = (
+            'Configure tools.wpsRoots in %USERPROFILE%\.codex\config\' +
+            'aem-watch-resource-pipeline.local.json.'
+        )
+        Add-EnvironmentCheck -Condition ($validWpsRoots.Count -gt 0) `
+            -Message "at least one WPS root exists: $($validWpsRoots -join ', ')" `
+            -Hint $wpsRootHint
+
+        $wpsSpreadsheet = $null
+        if ($validWpsRoots.Count -gt 0) {
+            $wpsSpreadsheet = Find-PipelineWpsSpreadsheet -Roots $validWpsRoots
+        }
+        Add-EnvironmentCheck -Condition ($null -ne $wpsSpreadsheet) `
+            -Message "WPS spreadsheet executable exists: $(
+                if ($null -ne $wpsSpreadsheet) {
+                    $wpsSpreadsheet.FullName
+                }
+                else { '' }
+            )" -Hint 'Check the configured WPS roots and installed WPS version.'
+
+        $wpsProgId = [string]$config.tools.wpsProgId
+        $ketType = [type]::GetTypeFromProgID($wpsProgId)
+        Add-EnvironmentWarning -Condition ($null -ne $ketType) `
+            -Message "$wpsProgId COM registration" `
+            -Hint 'Rerun TranslationPrepare/Apply with -RegisterWps if needed.'
+    }
+}
 
 Write-Output "CAPABILITY=$Capability"
 Write-Output "APPLICATION=$($config.project.application)"
