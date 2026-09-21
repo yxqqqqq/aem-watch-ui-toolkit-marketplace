@@ -74,6 +74,9 @@ WPS COM 与当前 UI Editor 自动化是 Windows 专用路径。`ResourceEnviron
 - `generation.generatedFiles` 必须覆盖 `.res`、`.sty`、当前打包语言、文本中间文件及生成 C/H；`tmp.csv` 不属于正式输出。
 - JPEG 临时文件只能根据 UI 工程真实引用关系识别，不使用宽泛目录通配符。
 - `generation.editorCommands` 与 UI Editor 版本绑定；工具升级后必须重新验证菜单 ID。
+- `generation.timeoutSeconds` 是开始活动感知监控的软超时，不再直接终止生成；默认 300 秒。
+- 软超时后，进度文字、进程树、进程 CPU 或输出文件任一继续变化时保持等待。`generation.stallTimeoutSeconds` 限制完全无可观察活动的持续时间，默认 600 秒；`generation.hardTimeoutSeconds` 是无条件最终上限，默认 900 秒且必须大于软超时。
+- UI Editor 的百分比不是完整进度，字符串资源阶段可以长时间停在 98% 后正常完成；不得仅按百分比或单次固定等待判定失败。
 
 ## 项目配置归属
 

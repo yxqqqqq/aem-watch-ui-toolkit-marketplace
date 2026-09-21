@@ -77,6 +77,8 @@
       "generateQualityHigh": 32849
     },
     "timeoutSeconds": 300,
+    "stallTimeoutSeconds": 600,
+    "hardTimeoutSeconds": 900,
     "stableSeconds": 5,
     "idleFailureSeconds": 45,
     "manualDeclarations": [],

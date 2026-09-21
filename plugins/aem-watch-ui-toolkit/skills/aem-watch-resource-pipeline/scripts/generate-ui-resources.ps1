@@ -171,6 +171,8 @@ $job = [ordered]@{
         generateQualityHigh = [int]$commands.generateQualityHigh
     }
     timeoutSeconds = [int]$config.generation.timeoutSeconds
+    stallTimeoutSeconds = [int]$config.generation.stallTimeoutSeconds
+    hardTimeoutSeconds = [int]$config.generation.hardTimeoutSeconds
     stableSeconds = [int]$config.generation.stableSeconds
     idleFailureSeconds = [int]$config.generation.idleFailureSeconds
     diagnosticRoot = $diagnosticRoot
@@ -191,6 +193,9 @@ Write-Output "PYTHON_SOURCE=$($python.Source)"
 Write-Output "UI_EDITOR=$editor"
 Write-Output "UI_PROJECT=$uiProject"
 Write-Output "UI_GENERATION_MODE=$($config.tools.uiEditorGenerationMode)"
+Write-Output "UI_GENERATION_SOFT_TIMEOUT_SECONDS=$($config.generation.timeoutSeconds)"
+Write-Output "UI_GENERATION_STALL_TIMEOUT_SECONDS=$($config.generation.stallTimeoutSeconds)"
+Write-Output "UI_GENERATION_HARD_TIMEOUT_SECONDS=$($config.generation.hardTimeoutSeconds)"
 Write-Output "TRANSACTION_ROOTS=$($snapshotRoots -join ';')"
 Write-Output "DIAGNOSTIC_ROOT=$diagnosticRoot"
 

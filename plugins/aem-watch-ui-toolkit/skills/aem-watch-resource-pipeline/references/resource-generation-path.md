@@ -34,10 +34,12 @@ powershell -ExecutionPolicy Bypass -File "<skill>/scripts/invoke-pipeline.ps1" `
 - 在工作区外备份配置的资源目录并记录 SHA-256。
 - 使用独立 UI Editor 打开配置的工程并执行配置的高质量生成模式。
 - 识别覆盖、进度、成功和错误窗口；未知模态窗口视为失败。
+- 把 UI Editor 百分比视为阶段提示而不是完成度；软超时后根据进度文字、进程树、进程 CPU 和输出文件变化继续等待。只有持续无活动达到停滞阈值或触及最终硬上限才失败回滚。
 - 等待正式生成文件存在、非空且稳定。
 - 限制变化只能落在配置白名单。
 - 只把 UI 工程已引用 JPEG 对应、但自身未被引用的 `_tmp.jpg/.jpeg` 识别为编辑器中间文件；已有文件按哈希恢复，新建文件删除并报告。
 - 成功后恢复 UI 工程原文和 `tmp.csv` 等非正式输出；失败后逐文件回滚并验证哈希。
+- 在诊断结果中记录带时间的进度变化、最近活动原因、无活动时长和生成进程快照；不得把长期显示 98% 单独报告为卡死。
 - 对项目配置 `preserveGeneratedSuffixes` 指定的文件，用本次事务快照中 marker 开始的尾部替换 UI Editor 输出的对应尾部；marker 缺失时回滚，不拼接猜测内容。
 
 不要直接使用 `resBuildApp.exe` 覆盖正式资源。正常流程不使用 `-AllowMissingGeneratedFiles`；只有恢复已确认缺失的历史生成物时才临时启用。允许重复生成结果逐字节不变时使用 `-AllowUnchangedResources`。

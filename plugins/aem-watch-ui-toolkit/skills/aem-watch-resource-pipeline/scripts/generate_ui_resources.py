@@ -43,6 +43,7 @@ LVM_GETITEMCOUNT = 0x1004
 MF_BYPOSITION = 0x0400
 TH32CS_SNAPPROCESS = 0x00000002
 PROCESS_TERMINATE = 0x0001
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 WNDENUMPROC = ctypes.WINFUNCTYPE(
@@ -62,6 +63,13 @@ class PROCESSENTRY32W(ctypes.Structure):
         ("pcPriClassBase", wintypes.LONG),
         ("dwFlags", wintypes.DWORD),
         ("szExeFile", wintypes.WCHAR * 260),
+    ]
+
+
+class FILETIME(ctypes.Structure):
+    _fields_ = [
+        ("dwLowDateTime", wintypes.DWORD),
+        ("dwHighDateTime", wintypes.DWORD),
     ]
 
 
@@ -151,6 +159,14 @@ kernel32.OpenProcess.argtypes = [
 kernel32.OpenProcess.restype = wintypes.HANDLE
 kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
 kernel32.TerminateProcess.restype = wintypes.BOOL
+kernel32.GetProcessTimes.argtypes = [
+    wintypes.HANDLE,
+    ctypes.POINTER(FILETIME),
+    ctypes.POINTER(FILETIME),
+    ctypes.POINTER(FILETIME),
+    ctypes.POINTER(FILETIME),
+]
+kernel32.GetProcessTimes.restype = wintypes.BOOL
 kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 kernel32.CloseHandle.restype = wintypes.BOOL
 
@@ -278,6 +294,56 @@ def descendant_pids(root_pid: int, include_root: bool = True) -> set[int]:
         descendants.update(next_frontier)
         frontier = next_frontier
     return descendants
+
+
+def filetime_ticks(value: FILETIME) -> int:
+    return (int(value.dwHighDateTime) << 32) | int(value.dwLowDateTime)
+
+
+def process_cpu_seconds(pids: set[int]) -> dict[int, float]:
+    result: dict[int, float] = {}
+    for pid in pids:
+        handle = kernel32.OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION, False, pid
+        )
+        if not handle:
+            continue
+        try:
+            creation = FILETIME()
+            exit_time = FILETIME()
+            kernel = FILETIME()
+            user = FILETIME()
+            if not kernel32.GetProcessTimes(
+                handle,
+                ctypes.byref(creation),
+                ctypes.byref(exit_time),
+                ctypes.byref(kernel),
+                ctypes.byref(user),
+            ):
+                continue
+            result[pid] = (
+                filetime_ticks(kernel) + filetime_ticks(user)
+            ) / 10_000_000
+        finally:
+            kernel32.CloseHandle(handle)
+    return result
+
+
+def describe_processes(
+    pids: set[int], cpu_seconds: dict[int, float]
+) -> list[dict]:
+    table = process_table()
+    return [
+        {
+            "pid": pid,
+            "parentPid": table.get(pid, {}).get("parent"),
+            "name": table.get(pid, {}).get("name", ""),
+            "cpuSeconds": round(cpu_seconds[pid], 3)
+            if pid in cpu_seconds
+            else None,
+        }
+        for pid in sorted(pids)
+    ]
 
 
 def visible_process_windows(pids: set[int]) -> list[int]:
@@ -1028,6 +1094,32 @@ def merge_preserved_suffixes(
     return merged_items
 
 
+def generation_timeout_reason(
+    *,
+    elapsed_seconds: float,
+    inactive_seconds: float,
+    soft_timeout_seconds: float,
+    stall_timeout_seconds: float,
+    hard_timeout_seconds: float,
+) -> str | None:
+    if elapsed_seconds >= hard_timeout_seconds:
+        return (
+            "UI Editor generation reached the hard limit of "
+            f"{hard_timeout_seconds:.0f} seconds."
+        )
+    if (
+        elapsed_seconds >= soft_timeout_seconds
+        and inactive_seconds >= stall_timeout_seconds
+    ):
+        return (
+            "UI Editor generation stalled after the soft timeout: no "
+            "progress, process CPU, process-tree, or output-file activity "
+            f"for {inactive_seconds:.0f} seconds "
+            f"(elapsed {elapsed_seconds:.0f} seconds)."
+        )
+    return None
+
+
 def wait_for_generation(
     *,
     process: subprocess.Popen,
@@ -1041,42 +1133,94 @@ def wait_for_generation(
     allowed_patterns: list[str],
     ephemeral_keys: set[str],
     timeout_seconds: float,
+    stall_timeout_seconds: float,
+    hard_timeout_seconds: float,
     stable_seconds: float,
     idle_failure_seconds: float,
     allow_unchanged: bool,
     diagnostics: list[dict],
+    monitor: dict,
 ) -> tuple[dict[str, dict], dict[str, list[str]]]:
     started = time.monotonic()
-    deadline = started + timeout_seconds
-    last_signature: dict | None = None
+    last_signature: dict | None = activity_baseline
     stable_since = started
     dialog_first_seen: dict[int, float] = {}
+    last_dialog_signatures: dict[int, tuple[str, str]] = {}
+    previous_dialogs: set[int] = set()
+    previous_pids = descendant_pids(process.pid)
+    previous_cpu_seconds = process_cpu_seconds(previous_pids)
+    last_activity_at = started
+    last_process_snapshot_at = -5.0
     saw_activity = False
     success_signal = False
 
-    while time.monotonic() < deadline:
+    monitor.update(
+        {
+            "softTimeoutSeconds": timeout_seconds,
+            "stallTimeoutSeconds": stall_timeout_seconds,
+            "hardTimeoutSeconds": hard_timeout_seconds,
+            "elapsedSeconds": 0.0,
+            "inactiveSeconds": 0.0,
+            "softTimeoutExceeded": False,
+            "lastActivityAt": now_iso(),
+            "lastActivityElapsedSeconds": 0.0,
+            "lastActivityReasons": [],
+            "lastProgress": None,
+            "processes": describe_processes(
+                previous_pids, previous_cpu_seconds
+            ),
+        }
+    )
+
+    while True:
         if process.poll() is not None:
             raise RuntimeError(
                 f"UI Editor exited during generation with code {process.returncode}."
             )
 
+        now = time.monotonic()
+        elapsed = now - started
+        activity_reasons: list[str] = []
         root_pids = descendant_pids(process.pid)
+        current_cpu_seconds = process_cpu_seconds(root_pids)
+        if root_pids != previous_pids:
+            activity_reasons.append("process-tree")
+        if any(
+            current_cpu_seconds[pid]
+            > previous_cpu_seconds.get(pid, current_cpu_seconds[pid]) + 0.001
+            for pid in current_cpu_seconds
+        ):
+            activity_reasons.append("process-cpu")
+        previous_pids = root_pids
+        previous_cpu_seconds = current_cpu_seconds
+
         dialogs = [
             hwnd
             for hwnd in visible_process_windows(root_pids)
             if hwnd != main_window and window_class(hwnd) == "#32770"
         ]
+        current_dialogs = set(dialogs)
+        if current_dialogs != previous_dialogs:
+            activity_reasons.append("dialog-set")
+        previous_dialogs = current_dialogs
         for dialog in dialogs:
             description = describe_window(dialog)
             kind = classify_dialog(description)
             description["classification"] = kind
-            if not diagnostics or diagnostics[-1] != description:
+            dialog_text = window_all_text(description)
+            signature = (kind, dialog_text)
+            dialog_changed = last_dialog_signatures.get(dialog) != signature
+            if dialog_changed:
+                description["observedAt"] = now_iso()
+                description["elapsedSeconds"] = round(elapsed, 1)
                 diagnostics.append(description)
+                last_dialog_signatures[dialog] = signature
+                activity_reasons.append("dialog-progress")
             dialog_first_seen.setdefault(dialog, time.monotonic())
             if kind == "error":
                 raise RuntimeError(
                     "UI Editor reported an error: "
-                    + window_all_text(description)
+                    + dialog_text
                 )
             if kind == "overwrite":
                 if not click_dialog_button(dialog, (6, 1)):
@@ -1097,6 +1241,12 @@ def wait_for_generation(
                 continue
             if kind == "progress":
                 saw_activity = True
+                if dialog_changed:
+                    monitor["lastProgress"] = {
+                        "observedAt": description["observedAt"],
+                        "elapsedSeconds": description["elapsedSeconds"],
+                        "text": dialog_text,
+                    }
                 continue
             if time.monotonic() - dialog_first_seen[dialog] > 3:
                 raise RuntimeError(
@@ -1110,9 +1260,17 @@ def wait_for_generation(
         if current_metadata != last_signature:
             last_signature = current_metadata
             stable_since = time.monotonic()
+            activity_reasons.append("output-files")
 
         if current_metadata != activity_baseline:
             saw_activity = True
+
+        if activity_reasons:
+            last_activity_at = now
+            saw_activity = True
+            monitor["lastActivityAt"] = now_iso()
+            monitor["lastActivityElapsedSeconds"] = round(elapsed, 1)
+            monitor["lastActivityReasons"] = sorted(set(activity_reasons))
 
         child_pids = root_pids - {process.pid}
         all_required_exist = all(
@@ -1120,8 +1278,16 @@ def wait_for_generation(
             for path in required_outputs
         )
         stable = time.monotonic() - stable_since >= stable_seconds
-        elapsed = time.monotonic() - started
         no_modal = not dialogs
+        inactive_seconds = now - last_activity_at
+        monitor["elapsedSeconds"] = round(elapsed, 1)
+        monitor["inactiveSeconds"] = round(inactive_seconds, 1)
+        monitor["softTimeoutExceeded"] = elapsed >= timeout_seconds
+        if elapsed - last_process_snapshot_at >= 5:
+            monitor["processes"] = describe_processes(
+                root_pids, current_cpu_seconds
+            )
+            last_process_snapshot_at = elapsed
 
         if (
             all_required_exist
@@ -1182,15 +1348,49 @@ def wait_for_generation(
             raise TimeoutError(
                 "UI Editor showed no generation activity and changed no files."
             )
-        time.sleep(0.5)
 
-    raise TimeoutError(
-        f"UI Editor generation exceeded {timeout_seconds:.0f} seconds."
-    )
+        timeout_reason = generation_timeout_reason(
+            elapsed_seconds=elapsed,
+            inactive_seconds=inactive_seconds,
+            soft_timeout_seconds=timeout_seconds,
+            stall_timeout_seconds=stall_timeout_seconds,
+            hard_timeout_seconds=hard_timeout_seconds,
+        )
+        if timeout_reason is not None:
+            raise TimeoutError(timeout_reason)
+        time.sleep(0.5)
 
 
 def self_test() -> None:
     import tempfile
+
+    active_reason = generation_timeout_reason(
+        elapsed_seconds=600,
+        inactive_seconds=30,
+        soft_timeout_seconds=300,
+        stall_timeout_seconds=600,
+        hard_timeout_seconds=900,
+    )
+    if active_reason is not None:
+        raise AssertionError("Active generation was treated as timed out.")
+    stalled_reason = generation_timeout_reason(
+        elapsed_seconds=750,
+        inactive_seconds=601,
+        soft_timeout_seconds=300,
+        stall_timeout_seconds=600,
+        hard_timeout_seconds=900,
+    )
+    if stalled_reason is None or "stalled" not in stalled_reason:
+        raise AssertionError("Inactive generation was not treated as stalled.")
+    hard_reason = generation_timeout_reason(
+        elapsed_seconds=900,
+        inactive_seconds=1,
+        soft_timeout_seconds=300,
+        stall_timeout_seconds=600,
+        hard_timeout_seconds=900,
+    )
+    if hard_reason is None or "hard limit" not in hard_reason:
+        raise AssertionError("Hard generation timeout was not enforced.")
 
     with tempfile.TemporaryDirectory(prefix="aem-watch-ui-transaction-") as temp:
         project = Path(temp).resolve()
@@ -1363,6 +1563,17 @@ def run(job: dict) -> dict:
     ]
     allow_missing_before = bool(job.get("allowMissingBefore", False))
     allow_unchanged = bool(job.get("allowUnchanged", False))
+    timeout_seconds = float(job.get("timeoutSeconds", 300))
+    stall_timeout_seconds = float(job.get("stallTimeoutSeconds", 600))
+    hard_timeout_seconds = float(job.get("hardTimeoutSeconds", 900))
+    if timeout_seconds <= 0:
+        raise ValueError("timeoutSeconds must be greater than zero.")
+    if stall_timeout_seconds <= 0:
+        raise ValueError("stallTimeoutSeconds must be greater than zero.")
+    if hard_timeout_seconds <= timeout_seconds:
+        raise ValueError(
+            "hardTimeoutSeconds must be greater than timeoutSeconds."
+        )
     missing_before = [path for path in required_outputs if not path.is_file()]
     if missing_before and not allow_missing_before:
         raise FileNotFoundError(
@@ -1398,6 +1609,7 @@ def run(job: dict) -> dict:
         for value in job["allowedChangePatterns"]
     ]
     diagnostics: list[dict] = []
+    generation_monitor: dict = {}
     process: subprocess.Popen | None = None
     main_window: int | None = None
     result = {
@@ -1412,6 +1624,7 @@ def run(job: dict) -> dict:
         ],
         "menuCommands": [],
         "dialogs": diagnostics,
+        "generationMonitor": generation_monitor,
         "changes": {"added": [], "modified": [], "deleted": []},
         "editorTemporaryFiles": [],
         "preservedSuffixes": [],
@@ -1458,11 +1671,14 @@ def run(job: dict) -> dict:
             required_outputs=required_outputs,
             allowed_patterns=allowed_patterns,
             ephemeral_keys=ephemeral_keys,
-            timeout_seconds=float(job.get("timeoutSeconds", 300)),
+            timeout_seconds=timeout_seconds,
+            stall_timeout_seconds=stall_timeout_seconds,
+            hard_timeout_seconds=hard_timeout_seconds,
             stable_seconds=float(job.get("stableSeconds", 5)),
             idle_failure_seconds=float(job.get("idleFailureSeconds", 45)),
             allow_unchanged=allow_unchanged,
             diagnostics=diagnostics,
+            monitor=generation_monitor,
         )
 
         close_editor(process, main_window)
